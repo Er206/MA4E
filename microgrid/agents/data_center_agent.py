@@ -6,8 +6,7 @@ class DataCenterAgent:
     def __init__(self, env: DataCenterEnv):
         self.env = env
 
-    def take_decision(self,
-                      state,):
+    def take_decision(self, state,):
         my_df = pnd.read_csv(r"C:\Users\yacin\Desktop\optim_et_energie\data_center\data_center_weekly_scenarios.csv",
                              sep=";")
         my_df1 = my_df[my_df["scenario"] == 1]
@@ -16,7 +15,6 @@ class DataCenterAgent:
         C1 = (self.env.COP_CS / self.env.EER) * (1 / (dt * (self.env.COP_HP - 1)))
         L_NF = (1 + 1 / (self.env.EER * dt)) * L_IT
         Lambda = [2 for i in range(48)]
-        pwh = [0.5 for i in range(48)]
         lp = pulp.LpProblem("DataCenter.lp", pulp.LpMinimize)
         lp.setSolver()
         alpha = [0 for i in range(48)]
@@ -32,7 +30,7 @@ class DataCenterAgent:
             lp += alpha[t] <= (self.env.max_transfert) / (dt * self.env.COP_HP * C1 * L_IT[t]), constraint_name
             constraint_name = "positive" + str(t)
             lp += alpha[t] >= 0
-            constraint_name = "inférieure à 1" + str(t)
+            constraint_name = "inférieur à 1" + str(t)
             lp += alpha[t] <= 1
 
         # creation de la fonction objectif
@@ -50,7 +48,7 @@ class DataCenterAgent:
             R[int(v.name[5:])] = v.varValue
         return R
 
-    return run()
+        return run()
 
 
 if __name__ == "__main__":
