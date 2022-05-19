@@ -1,43 +1,51 @@
 import datetime
 from microgrid.environments.data_center.data_center_env import DataCenterEnv
+import sys
+import os
+import pulp
+import pandas as pnd
+
 
 
 class DataCenterAgent:
     def __init__(self, env: DataCenterEnv):
         self.env = env
 
-    def take_decision(self, state,):
-        my_df = pnd.read_csv(r"C:\Users\yacin\Desktop\optim_et_energie\data_center\data_center_weekly_scenarios.csv",
-                             sep=";")
-        my_df1 = my_df[my_df["scenario"] == 1]
-        L_IT = my_df1["cons (kW)"].values
-        dt = self.env.delta_t / datetime.timedelta(hours=1)
-        C1 = (self.env.COP_CS / self.env.EER) * (1 / (dt * (self.env.COP_HP - 1)))
-        L_NF = (1 + 1 / (self.env.EER * dt)) * L_IT
-        Lambda = [2 for i in range(48)]
-        lp = pulp.LpProblem("DataCenter.lp", pulp.LpMinimize)
-        lp.setSolver()
-        alpha = [0 for i in range(48)]
-        for t in range(48):
-            # creation des variables
-            ###########################################################
-            var_name = "alpha" + str(t)
-            alpha[t] = pulp.LpVariable(var_name, 0.0, 1.0)
+    def take_decision(self, state):
+        def data_center():
+            my_df = pnd.read_csv(
+                r"C:\Users\yacin\Desktop\optim_et_energie\data_center\data_center_weekly_scenarios.csv",
+                sep=";")
+            my_df1 = my_df[my_df["scenario"] == 1]
+            L_IT = my_df1["cons (kW)"].values
+            dt = self.env.delta_t / datetime.timedelta(hours=1)
+            C1 = (self.env.COP_CS / self.env.EER) * (1 / (dt * (self.env.COP_HP - 1)))
+            L_NF = (1 + 1 / (self.env.EER * dt)) * L_IT
+            Lambda = [2 for i in range(48)]
+            pwh = [0.5 for i in range(48)]
+            lp = pulp.LpProblem("DataCenter.lp", pulp.LpMinimize)
+            lp.setSolver()
+            alpha = [0 for i in range(48)]
+            for t in range(48):
+                # creation des variables
+                ###########################################################
+                var_name = "alpha" + str(t)
+                alpha[t] = pulp.LpVariable(var_name, 0.0, 1.0)
 
-            # creation des contraintes (a adapter)
-            ###########################################################
-            constraint_name = "Borne sup" + str(t)
-            lp += alpha[t] <= (self.env.max_transfert) / (dt * self.env.COP_HP * C1 * L_IT[t]), constraint_name
-            constraint_name = "positive" + str(t)
-            lp += alpha[t] >= 0
-            constraint_name = "inférieur à 1" + str(t)
-            lp += alpha[t] <= 1
+                # creation des contraintes (a adapter)
+                ###########################################################
+                constraint_name = "Borne sup" + str(t)
+                lp += alpha[t] <= (self.env.max_transfert) / (dt * self.env.COP_HP * C1 * L_IT[t]), constraint_name
+                constraint_name = "positive" + str(t)
+                lp += alpha[t] >= 0
+                constraint_name = "inférieure à 1" + str(t)
+                lp += alpha[t] <= 1
 
-        # creation de la fonction objectif
-        ###########################################################
-        lp.setObjective(pulp.lpSum([Lambda[t] * (L_NF[t] + alpha[t] * C1 * L_IT[t]) * dt - (
-                    self.env.COP_HP * dt * C1 * L_IT[t] * alpha[t] * self.env.prices[t]) for t in range(48)]))
-        return lp
+            # creation de la fonction objectif
+            ###########################################################
+            lp.setObjective(pulp.lpSum([Lambda[t] * (L_NF[t] + alpha[t] * C1 * L_IT[t]) * dt - (
+                        self.env.COP_HP * dt * C1 * L_IT[t] * alpha[t] * self.env.prices[t]) for t in range(48)]))
+            return lp
 
         def run():
             I = data_center()
@@ -47,8 +55,8 @@ class DataCenterAgent:
                 print(v.name, "=", v.varValue)
                 R[int(v.name[5:])] = v.varValue
             return R
-        return run()
 
+        return run()
 
 if __name__ == "__main__":
     delta_t = datetime.timedelta(minutes=30)
