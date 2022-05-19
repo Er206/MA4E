@@ -39,15 +39,14 @@ class DataCenterAgent:
                     self.env.COP_HP * dt * C1 * L_IT[t] * alpha[t] * self.env.prices[t]) for t in range(48)]))
         return lp
 
-    def run():
-        I = data_center()
-        I.solve()
-        R = [1 for i in range(48)]
-        for v in I.variables():
-            print(v.name, "=", v.varValue)
-            R[int(v.name[5:])] = v.varValue
-        return R
-
+        def run():
+            I = data_center()
+            I.solve()
+            R = [1 for i in range(48)]
+            for v in I.variables():
+                print(v.name, "=", v.varValue)
+                R[int(v.name[5:])] = v.varValue
+            return R
         return run()
 
 
