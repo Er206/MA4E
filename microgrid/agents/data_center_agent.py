@@ -13,16 +13,12 @@ class DataCenterAgent:
 
     def take_decision(self, state):
         def data_center():
-            my_df = pnd.read_csv(
-                r"C:\Users\yacin\Desktop\optim_et_energie\data_center\data_center_weekly_scenarios.csv",
-                sep=";")
-            my_df1 = my_df[my_df["scenario"] == 1]
-            L_IT = my_df1["cons (kW)"].values
+            L_IT = state['consumption_prevision']
             dt = self.env.delta_t / datetime.timedelta(hours=1)
             C1 = (self.env.COP_CS / self.env.EER) * (1 / (dt * (self.env.COP_HP - 1)))
             L_NF = (1 + 1 / (self.env.EER * dt)) * L_IT
-            Lambda = [2 for i in range(48)]
-            pwh = [0.5 for i in range(48)]
+            Lambda = state["manager_signal"]
+            pwh = state["hotwater_price_prevision"]
             lp = pulp.LpProblem("DataCenter.lp", pulp.LpMinimize)
             lp.setSolver()
             alpha = [0 for i in range(48)]
@@ -44,7 +40,7 @@ class DataCenterAgent:
             # creation de la fonction objectif
             ###########################################################
             lp.setObjective(pulp.lpSum([Lambda[t] * (L_NF[t] + alpha[t] * C1 * L_IT[t]) * dt - (
-                        self.env.COP_HP * dt * C1 * L_IT[t] * alpha[t] * state['hotwater_price_prevision'][t]) for t in range(48)]))
+                        self.env.COP_HP * dt * C1 * L_IT[t] * alpha[t] * pwh[t]) for t in range(48)]))
             return lp
 
         def run():
