@@ -44,7 +44,7 @@ class DataCenterAgent:
             # creation de la fonction objectif
             ###########################################################
             lp.setObjective(pulp.lpSum([Lambda[t] * (L_NF[t] + alpha[t] * C1 * L_IT[t]) * dt - (
-                        self.env.COP_HP * dt * C1 * L_IT[t] * alpha[t] * self.env.prices[t]) for t in range(48)]))
+                        self.env.COP_HP * dt * C1 * L_IT[t] * alpha[t] * state['hotwater_price_prevision'][t]) for t in range(48)]))
             return lp
 
         def run():
