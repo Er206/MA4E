@@ -6,56 +6,63 @@ class IndustrialAgent:
     def __init__(self, env: IndustrialEnv):
         self.env = env
 
-    def take_decision(self,
+        def take_decision(self,
                       state,
                       previous_state=None,
                       previous_action=None,
                       previous_reward=None):
-        # données utiles
-        delta_t = datetime.timedelta(minutes=30)  # pas de temps
-        T = self.env.nb_pdt  # cf industrial_env.py  nb de periode temporelles
-        capacity = self.env.battery.capacity  # cf battery.py charge max
-        pmax = self.env.battery.pmax  # cf battery.py puissance max
-        efficiency = self.env.battery.efficiency  # cf battery.py rendement de la batterie
 
-        manager_signal = state.get("manager_signal")  # prix  cf manager.py l95
-        consumption_prevision = state.get("consumption_prevision")  # la demande de consommatio
+        #Données utiles:
+        
+        delta_t = datetime.timedelta(minutes=30)  #pas de temps
         H = datetime.timedelta(hours=1)
+        T=self.env.nb_pdt #nombre de periodes temporelles
+        capacity= self.env.battery.capacity  #capacité
+        pmax=self.env.battery.pmax #puisance maximale
+        efficiency=self.env.battery.efficiency #rendement
 
-        # problème:
-        pb = pulp.LpProblem("Site industriel", pulp.LpMinimize)
+        manager_signal= state.get("manager_signal") #les prix  cf manager.py 
+        consumption_prevision = state.get("consumption_prevision")  # la demande de consommation
 
-        # variabless
-        l_bat_pos = pulp.LpVariable.dicts("l_bat_pos", [t for t in range(T)], 0)  # l_bat+
-        l_bat_neg = pulp.LpVariable.dicts("l_bat_neg", [t for t in range(T)], 0)  # l_bat-
+        soc = state.get("soc")
+        a_td = self.env.battery.soc
+
+        #Problème:
+        
+        pb=pulp.LpProblem("Site industriel", pulp.LpMinimize)
+
+        #Variables:
+        
+        l_bat_pos = pulp.LpVariable.dicts("l_bat_pos", [t for t in range(T)], pmax)  #l_bat+ <= pmax
+        l_bat_neg = pulp.LpVariable.dicts("l_bat_neg", [t for t in range(T)], pmax)  #l_bat- <= pmax
         l_bat = pulp.LpVariable.dicts("l_bat", [t for t in range(T)])
-        li = pulp.LpVariable.dicts("li", [t for t in range(T)])  # demande totale du site industriel
-        a = pulp.LpVariable.dicts("stock_batterie", [t for t in range(T)], 0,
-                                  capacity)  # cf formulation mathématique  0 <= a <= C
+        li = pulp.LpVariable.dicts("li", [t for t in range(T)])  #demande totale du site industriel (ie en incluant la présence de la batterie)
+        a = pulp.LpVariable.dicts("stock_batterie", [t for t in range(T)], 0, capacity) #cf formulation mathématique  0 <= a <= C
 
-        # fonction objectif
+        #fonction objectifll
 
-        pb += pulp.lpSum([li[t] * manager_signal[t] * delta_t / H for t in range(T)])
+        pb += pulp.lpSum([li[t] * manager_signal[t] * delta_t/H  for t in range(T)])
 
-        # contraintes
-        pb += a[0] == 0
-        pb += pulp.lpSum([l_bat_pos[t] for t in range(T)]) <= pmax
-        pb += pulp.lpSum([l_bat_neg[t] for t in range(T)]) <= pmax
-        pb += pulp.lpSum([li[t] - consumption_prevision[t] - l_bat[t] for t in
-                          range(T)]) == 0  # li(t)=ldem(t)+lbat(t) cf formulation math
-        pb += pulp.lpSum(
-            [a[t] - a[t - 1] - (efficiency * l_bat_pos[t] - l_bat_neg[t] * 1 / efficiency) * delta_t / H for t in
-             range(1, T)]) == 0  # formule de recurrence a(t)
+        #Contraintes
 
-        # Résolution
+        pb += a[0]== a_td
+
+        for t in range(T):
+            pb += li[t] - consumption_prevision[t] - l_bat[t] == 0  #li(t)=ldem(t)+lbat(t)
+            pb += l_bat[t] - (l_bat_pos[t] - l_bat_neg[t]) == 0
+
+        for t in range(1,T):
+            pb += a[t]-a[t-1]- (efficiency*l_bat_pos[t] - 1/efficiency*l_bat_neg[t])*delta_t/H ==0  #formule de recurrence a(t)
+
+
+        #Résolution
         pb.solve()
 
-        result = self.env.action_space.sample()
+        resultat = self.env.action_space.sample()
         for t in range(T):
-            result[t] = li[t].value()
-
-        return result
-
+            resultat[t] = li[t].value()
+            
+        return resultat
 
 if __name__ == "__main__":
     delta_t = datetime.timedelta(minutes=30)
