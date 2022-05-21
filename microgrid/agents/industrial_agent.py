@@ -39,11 +39,11 @@ class IndustrialAgent:
         li = pulp.LpVariable.dicts("li", [t for t in range(T)])  #demande totale du site industriel (ie en incluant la présence de la batterie)
         a = pulp.LpVariable.dicts("stock_batterie", [t for t in range(T)], 0, capacity) #cf formulation mathématique  0 <= a <= C
 
-        #fonction objectifll
+        #Fonction objectif:
 
         pb += pulp.lpSum([li[t] * manager_signal[t] * delta_t/H  for t in range(T)])
 
-        #Contraintes
+        #Contraintes:
 
         pb += a[0]== a_td
 
@@ -55,7 +55,7 @@ class IndustrialAgent:
             pb += a[t]-a[t-1]- (efficiency*l_bat_pos[t] - 1/efficiency*l_bat_neg[t])*delta_t/H ==0  #formule de recurrence a(t)
 
 
-        #Résolution
+        #Résolution:
         pb.solve()
 
         resultat = self.env.action_space.sample()
